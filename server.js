@@ -5,6 +5,7 @@
 const express = require('express');
 const cors = require('cors');
 const { startAutoRefresh, refresh, getState } = require('./cache');
+const { searchAnime } = require('./anilist');
 
 const app = express();
 app.use(cors());
@@ -41,6 +42,39 @@ app.get('/api/upcoming', (req, res) => {
   }
 
   res.json({ lastUpdated, count: result.length, results: result });
+});
+
+// GET /api/search?q=... — recherche libre par nom, en direct sur AniList
+// (pas de cache ici : c'est une requête à la demande, pas un flux périodique)
+app.get('/api/search', async (req, res) => {
+  const q = req.query.q || '';
+  if (q.trim().length < 2) {
+    return res.status(400).json({ error: 'Le paramètre q doit faire au moins 2 caractères.' });
+  }
+  try {
+    const media = await searchAnime(q, { perPage: 12 });
+    const results = media.map((m) => ({
+      id: `media-${m.id}`,
+      title: m.title.userPreferred || m.title.romaji || m.title.english,
+      status: m.status, // NOT_YET_RELEASED | RELEASING | FINISHED | ...
+      format: m.format,
+      date: m.startDate?.year
+        ? `${m.startDate.year}-${String(m.startDate.month || 1).padStart(2, '0')}-${String(m.startDate.day || 1).padStart(2, '0')}`
+        : null,
+      nextEpisode: m.nextAiringEpisode
+        ? { episode: m.nextAiringEpisode.episode, date: new Date(m.nextAiringEpisode.airingAt * 1000).toISOString().slice(0, 10) }
+        : null,
+      genres: m.genres,
+      studio: m.studios?.nodes?.[0]?.name || null,
+      coverUrl: m.coverImage?.large || null,
+      accentColor: m.coverImage?.color || null,
+      description: m.description,
+      url: m.siteUrl,
+    }));
+    res.json({ query: q, count: results.length, results });
+  } catch (err) {
+    res.status(502).json({ error: 'Recherche AniList indisponible pour le moment.', detail: err.message });
+  }
 });
 
 // POST /api/refresh — force un rafraîchissement manuel (utile en debug ;

@@ -82,6 +82,40 @@ query ($page: Int, $perPage: Int, $from: Int, $to: Int) {
   }
 }`;
 
+// 3) Recherche libre par nom (utilisée par la barre de recherche de l'appli).
+// Contrairement aux deux requêtes ci-dessus, celle-ci part d'un texte tapé
+// par l'utilisateur et n'est donc jamais mise en cache : elle est appelée
+// à la demande, avec un petit debounce côté appli pour ne pas spammer AniList.
+const SEARCH_QUERY = `
+query ($search: String, $perPage: Int) {
+  Page(page: 1, perPage: $perPage) {
+    media(
+      search: $search
+      type: ANIME
+      sort: POPULARITY_DESC
+      isAdult: false
+    ) {
+      id
+      title { romaji english native userPreferred }
+      status
+      format
+      startDate { year month day }
+      genres
+      studios(isMain: true) { nodes { name } }
+      coverImage { large color }
+      description(asHtml: false)
+      siteUrl
+      nextAiringEpisode { airingAt episode }
+    }
+  }
+}`;
+
+async function searchAnime(search, { perPage = 12 } = {}) {
+  if (!search || search.trim().length < 2) return [];
+  const data = await anilistQuery(SEARCH_QUERY, { search: search.trim(), perPage });
+  return data.Page.media;
+}
+
 async function fetchUpcomingAnime({ maxPages = 3, perPage = 25 } = {}) {
   const all = [];
   for (let page = 1; page <= maxPages; page++) {
@@ -110,4 +144,4 @@ async function fetchAiringSchedule({ daysAhead = 60, perPage = 50 } = {}) {
   return all;
 }
 
-module.exports = { fetchUpcomingAnime, fetchAiringSchedule };
+module.exports = { fetchUpcomingAnime, fetchAiringSchedule, searchAnime };
