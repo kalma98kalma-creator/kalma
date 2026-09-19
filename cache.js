@@ -18,7 +18,7 @@ let state = {
 function normalize({ upcoming, schedule }) {
   const fromUpcoming = upcoming.map((m) => ({
     id: `media-${m.id}`,
-    title: m.title.userPreferred || m.title.romaji || m.title.english,
+    title: m.title.english || m.title.romaji || m.title.userPreferred,
     type: 'new',
     date: m.startDate?.year
       ? `${m.startDate.year}-${String(m.startDate.month || 1).padStart(2, '0')}-${String(m.startDate.day || 1).padStart(2, '0')}`
@@ -33,7 +33,7 @@ function normalize({ upcoming, schedule }) {
 
   const fromSchedule = schedule.map((s) => ({
     id: `episode-${s.media.id}-${s.episode}`,
-    title: s.media.title.userPreferred || s.media.title.romaji,
+    title: s.media.title.english || s.media.title.romaji,
     type: 'episode',
     episode: s.episode,
     date: new Date(s.airingAt * 1000).toISOString().slice(0, 10),

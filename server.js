@@ -55,7 +55,7 @@ app.get('/api/search', async (req, res) => {
     const media = await searchAnime(q, { perPage: 12 });
     const results = media.map((m) => ({
       id: `media-${m.id}`,
-      title: m.title.userPreferred || m.title.romaji || m.title.english,
+      title: m.title.english || m.title.romaji || m.title.userPreferred,
       status: m.status, // NOT_YET_RELEASED | RELEASING | FINISHED | ...
       format: m.format,
       date: m.startDate?.year
